@@ -1,14 +1,14 @@
 {
   "localhost": {
     "Factory": {
-      "address": "0x0000000000000000000000000000000000000000",
-      "startBlock": 87385460
+      "address": "0x01D6747dD2d65dDD90FAEC2C84727c2706ee28E2",
+      "startBlock": 270030
     }
   },
-  "base": {
+  "sonic-mainnet": {
     "Factory": {
-      "address": "0x0000000000000000000000000000000000000000",
-      "startBlock": 14528050
+      "address": "0x01D6747dD2d65dDD90FAEC2C84727c2706ee28E2",
+      "startBlock": 270030
     }
   }
 }
