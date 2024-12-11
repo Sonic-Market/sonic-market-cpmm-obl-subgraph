@@ -4,7 +4,6 @@ import {
   BigInt,
   Bytes,
   ethereum,
-  store,
 } from '@graphprotocol/graph-ts'
 
 import { PairCreated } from '../../generated/Factory/Factory'
@@ -22,8 +21,8 @@ import {
   Pools,
   PoolSnapshot,
   Trade,
-  UserScoreSnapshot,
   Users,
+  UserScoreSnapshot,
   V2Burn,
   V2Mint,
   V2Sync,
@@ -257,8 +256,12 @@ export function handleMint(event: Mint): void {
   const totalSupply = pair.totalSupply().toBigDecimal()
   const burnAmount0 = v2Mint.token0Amount
   const burnAmount1 = v2Mint.token1Amount
-  const mintAmountFor0 = burnAmount0.times(totalSupply).div(reserves.value0.toBigDecimal())
-  const mintAmountFor1 = burnAmount1.times(totalSupply).div(reserves.value1.toBigDecimal())
+  const mintAmountFor0 = burnAmount0
+    .times(totalSupply)
+    .div(reserves.value0.toBigDecimal())
+  const mintAmountFor1 = burnAmount1
+    .times(totalSupply)
+    .div(reserves.value1.toBigDecimal())
   v2Mint.mintAmount = mintAmountFor0.gt(mintAmountFor1)
     ? mintAmountFor1
     : mintAmountFor0
@@ -404,10 +407,16 @@ export function handleFactoryBlock(block: ethereum.Block): void {
 function createLPPositionSnapshots(
   block: ethereum.Block,
   poolAddress: Bytes,
-  userAddress: Bytes
+  userAddress: Bytes,
 ): void {
   const blockDate = createBlockDate(block.timestamp)
-  const snapshot0Id = blockDate + '-' + poolAddress.toHexString() + '-' + userAddress.toHexString() + '-0'
+  const snapshot0Id =
+    blockDate +
+    '-' +
+    poolAddress.toHexString() +
+    '-' +
+    userAddress.toHexString() +
+    '-0'
 
   if (!LPPositionSnapshot.load(snapshot0Id)) {
     const pair = PairContract.bind(Address.fromBytes(poolAddress))
@@ -436,7 +445,13 @@ function createLPPositionSnapshots(
     snapshot0.tokenAmount = token0Amount
     snapshot0.save()
 
-    const snapshot1Id = blockDate + '-' + poolAddress.toHexString() + '-' + userAddress.toHexString() + '-1'
+    const snapshot1Id =
+      blockDate +
+      '-' +
+      poolAddress.toHexString() +
+      '-' +
+      userAddress.toHexString() +
+      '-1'
     const snapshot1 = new LPPositionSnapshot(snapshot1Id)
     snapshot1.timestamp = block.timestamp
     snapshot1.blockDate = blockDate
@@ -454,10 +469,15 @@ function createLPPositionSnapshots(
 function createUserScoreSnapshots(
   block: ethereum.Block,
   poolAddress: Bytes,
-  userAddress: Bytes
+  userAddress: Bytes,
 ): void {
   const blockDate = createBlockDate(block.timestamp)
-  const snapshotId = blockDate + '-' + poolAddress.toHexString() + '-' + userAddress.toHexString()
+  const snapshotId =
+    blockDate +
+    '-' +
+    poolAddress.toHexString() +
+    '-' +
+    userAddress.toHexString()
 
   if (!UserScoreSnapshot.load(snapshotId)) {
     const pair = PairContract.bind(Address.fromBytes(poolAddress))
@@ -466,7 +486,9 @@ function createUserScoreSnapshots(
 
     const userShare = balance.toBigDecimal().div(totalSupply.toBigDecimal())
     const reserves = pair.getReserves()
-    const totalValueLocked = reserves.value0.toBigDecimal().plus(reserves.value1.toBigDecimal())
+    const totalValueLocked = reserves.value0
+      .toBigDecimal()
+      .plus(reserves.value1.toBigDecimal())
     const totalValueLockedScore = totalValueLocked.times(userShare)
 
     const snapshot = new UserScoreSnapshot(snapshotId)
