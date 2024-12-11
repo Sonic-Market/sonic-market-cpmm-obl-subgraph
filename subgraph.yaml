@@ -1,0 +1,74 @@
+specVersion: 1.0.0
+schema:
+  file: ./schema.graphql
+indexerHints:
+  prune: auto
+dataSources:
+  - kind: ethereum
+    name: Factory
+    network: base
+    source:
+      address: "0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f"
+      abi: Factory
+      startBlock: 14528050
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      entities:
+        - Pool
+      abis:
+        - name: Factory
+          file: ./abis/UniswapV2Factory.json
+        - name: ERC20
+          file: ./abis/ERC20.json
+        - name: Pair
+          file: ./abis/UniswapV2Pair.json
+      eventHandlers:
+        - event: PairCreated(indexed address,indexed address,address,uint256)
+          handler: handlePairCreated
+      blockHandlers:
+        - handler: handleFactoryBlock
+      file: ./src/mappings/core.ts
+
+templates:
+  - kind: ethereum
+    name: Pair
+    network: base
+    source:
+      abi: Pair
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      entities:
+        - Pool
+        - LPPositionSnapshot
+        - PoolSnapshot
+        - Trade
+        - V2Mint
+        - V2Burn
+        - V2Sync
+        - V2Transfer
+        - UserScoreSnapshot
+      abis:
+        - name: Pair
+          file: ./abis/UniswapV2Pair.json
+        - name: Factory
+          file: ./abis/UniswapV2Factory.json
+        - name: ERC20
+          file: ./abis/ERC20.json
+      eventHandlers:
+        - event: Mint(indexed address,uint256,uint256)
+          handler: handleMint
+        - event: Burn(indexed address,uint256,uint256,indexed address)
+          handler: handleBurn
+        - event: Swap(indexed address,uint256,uint256,uint256,uint256,indexed address)
+          handler: handleSwap
+        - event: Transfer(indexed address,indexed address,uint256)
+          handler: handleTransfer
+        - event: Sync(uint112,uint112)
+          handler: handleSync
+      blockHandlers:
+        - handler: handlePairBlock
+      file: ./src/mappings/core.ts

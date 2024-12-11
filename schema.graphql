@@ -1,0 +1,148 @@
+type Pool @entity {
+  id: ID!
+  chainId: BigInt!
+  creationBlockNumber: BigInt!
+  timestamp: BigInt!
+  poolAddress: Bytes!
+  lpTokenAddress: Bytes!
+  lpTokenSymbol: String!
+  tokenAddress: Bytes!
+  tokenSymbol: String!
+  tokenDecimals: BigInt!
+  tokenIndex: BigInt!
+  feeRate: BigDecimal!
+  dexType: String!
+}
+
+type LPPositionSnapshot @entity {
+  id: ID!
+  timestamp: BigInt!
+  blockDate: String!
+  chainId: BigInt!
+  poolAddress: Bytes!
+  userAddress: Bytes!
+  tokenIndex: BigInt!
+  tokenAddress: Bytes!
+  tokenSymbol: String!
+  tokenAmount: BigDecimal!
+}
+
+type UserScoreSnapshot @entity {
+  id: ID!
+  timestamp: BigInt!
+  blockDate: String!
+  chainId: BigInt!
+  blockNumber: BigInt!
+  userAddress: Bytes!
+  poolAddress: Bytes!
+  totalValueLockedScore: BigDecimal!
+}
+
+type PoolSnapshot @entity {
+  id: ID!
+  timestamp: BigInt!
+  blockDate: String!
+  chainId: BigInt!
+  poolAddress: Bytes!
+  tokenIndex: BigInt!
+  tokenAddress: Bytes!
+  tokenSymbol: String!
+  tokenAmount: BigDecimal!
+  volumeAmount: BigDecimal!
+  feeRate: BigDecimal!
+}
+
+type Trade @entity {
+  id: ID!
+  timestamp: BigInt!
+  chainId: BigInt!
+  blockNumber: BigInt!
+  logIndex: BigInt!
+  transactionHash: Bytes!
+  userAddress: Bytes!
+  takerAddress: Bytes!
+  makerAddress: Bytes!
+  pairName: String!
+  poolAddress: Bytes!
+  inputTokenAddress: Bytes!
+  inputTokenSymbol: String!
+  inputTokenAmount: BigDecimal!
+  outputTokenAddress: Bytes!
+  outputTokenSymbol: String!
+  outputTokenAmount: BigDecimal!
+  spotPriceAfterSwap: BigDecimal!
+}
+
+type V2Mint @entity {
+  id: ID!
+  timestamp: BigInt!
+  chainId: BigInt!
+  blockNumber: BigInt!
+  logIndex: BigInt!
+  transactionHash: Bytes!
+  transactionFromAddress: Bytes!
+  fromAddress: Bytes!
+  toAddress: Bytes!
+  poolAddress: Bytes!
+  token0Address: Bytes!
+  token0Amount: BigDecimal!
+  token1Address: Bytes!
+  token1Amount: BigDecimal!
+  mintAmount: BigDecimal!
+}
+
+type V2Burn @entity {
+  id: ID!
+  timestamp: BigInt!
+  chainId: BigInt!
+  blockNumber: BigInt!
+  logIndex: BigInt!
+  transactionHash: Bytes!
+  transactionFromAddress: Bytes!
+  fromAddress: Bytes!
+  toAddress: Bytes!
+  poolAddress: Bytes!
+  token0Address: Bytes!
+  token0Amount: BigDecimal!
+  token1Address: Bytes!
+  token1Amount: BigDecimal!
+  burnAmount: BigDecimal!
+}
+
+type V2Sync @entity {
+  id: ID!
+  timestamp: BigInt!
+  chainId: BigInt!
+  blockNumber: BigInt!
+  logIndex: BigInt!
+  transactionHash: Bytes!
+  poolAddress: Bytes!
+  token0Address: Bytes!
+  token0Amount: BigDecimal!
+  token1Address: Bytes!
+  token1Amount: BigDecimal!
+}
+
+type V2Transfer @entity {
+  id: ID!
+  timestamp: BigInt!
+  chainId: BigInt!
+  blockNumber: BigInt!
+  logIndex: BigInt!
+  transactionHash: Bytes!
+  transactionFromAddress: Bytes!
+  fromAddress: Bytes!
+  toAddress: Bytes!
+  poolAddress: Bytes!
+  tokenAmount: BigDecimal!
+}
+
+type Pools @entity {
+  id: ID!
+  addresses: [Bytes!]!
+}
+
+type Users @entity {
+  id: ID!
+  addresses: [Bytes!]!
+}
