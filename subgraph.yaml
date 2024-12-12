@@ -17,6 +17,7 @@ dataSources:
       language: wasm/assemblyscript
       entities:
         - Pool
+        - PoolRegistry
       abis:
         - name: Factory
           file: ./abis/UniswapV2Factory.json
@@ -50,6 +51,8 @@ templates:
         - V2Sync
         - V2Transfer
         - UserScoreSnapshot
+        - PoolRegistry
+        - UserRegistry
       abis:
         - name: Pair
           file: ./abis/UniswapV2Pair.json

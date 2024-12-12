@@ -18,10 +18,10 @@ import {
 import {
   LPPositionSnapshot,
   Pool,
-  Pools,
+  PoolRegistry,
   PoolSnapshot,
   Trade,
-  Users,
+  UserRegistry,
   UserScoreSnapshot,
   V2Burn,
   V2Mint,
@@ -37,8 +37,8 @@ const ONE_BI = BigInt.fromI32(1)
 const ZERO_BD = BigDecimal.fromString('0')
 const FEE_RATE = BigDecimal.fromString('0.003')
 const ADDRESS_ZERO = '0x0000000000000000000000000000000000000000'
-export const POOLS = 'pools'
-export const USERS = 'users'
+export const POOL_REGISTRY = 'pool-registry'
+export const USER_REGISTRY = 'user-registry'
 
 function createBlockDate(timestamp: BigInt): string {
   const date = new Date(timestamp.toI32() * 1000)
@@ -151,15 +151,15 @@ export function handleTransfer(event: Transfer): void {
 }
 
 function trackPool(poolAddress: Bytes): void {
-  let pools = Pools.load(POOLS)
-  if (!pools) {
-    pools = new Pools(POOLS)
-    pools.addresses = []
+  let registry = PoolRegistry.load(POOL_REGISTRY)
+  if (!registry) {
+    registry = new PoolRegistry(POOL_REGISTRY)
+    registry.addresses = []
   }
-  const addresses = pools.addresses
+  const addresses = registry.addresses
   addresses.push(poolAddress)
-  pools.addresses = addresses
-  pools.save()
+  registry.addresses = addresses
+  registry.save()
 }
 
 function trackUser(userAddress: Bytes): void {
@@ -167,13 +167,13 @@ function trackUser(userAddress: Bytes): void {
     return
   }
 
-  let users = Users.load(USERS)
-  if (!users) {
-    users = new Users(USERS)
-    users.addresses = []
+  let registry = UserRegistry.load(USER_REGISTRY)
+  if (!registry) {
+    registry = new UserRegistry(USER_REGISTRY)
+    registry.addresses = []
   }
 
-  const addresses = users.addresses
+  const addresses = registry.addresses
   for (let i = 0; i < addresses.length; i++) {
     if (addresses[i] == userAddress) {
       return
@@ -181,8 +181,8 @@ function trackUser(userAddress: Bytes): void {
   }
 
   addresses.push(userAddress)
-  users.addresses = addresses
-  users.save()
+  registry.addresses = addresses
+  registry.save()
 }
 
 export function handlePairCreated(event: PairCreated): void {
@@ -387,12 +387,12 @@ export function handleSync(event: Sync): void {
 }
 
 export function handleFactoryBlock(block: ethereum.Block): void {
-  const pools = Pools.load(POOLS)
-  if (!pools) {
+  const registry = PoolRegistry.load(POOL_REGISTRY)
+  if (!registry) {
     return
   }
 
-  const addresses = pools.addresses
+  const addresses = registry.addresses
   for (let i = 0; i < addresses.length; i++) {
     const poolAddress = addresses[i]
     const pool = Pool.load(poolAddress.toHexString())
@@ -504,17 +504,17 @@ function createUserScoreSnapshots(
 }
 
 export function handlePairBlock(block: ethereum.Block): void {
-  const pools = Pools.load(POOLS)
-  const users = Users.load(USERS)
-  if (!pools || !users) {
+  const poolRegistry = PoolRegistry.load(POOL_REGISTRY)
+  const userRegistry = UserRegistry.load(USER_REGISTRY)
+  if (!poolRegistry || !userRegistry) {
     return
   }
 
-  for (let i = 0; i < pools.addresses.length; i++) {
-    const poolAddress = pools.addresses[i]
+  for (let i = 0; i < poolRegistry!.addresses.length; i++) {
+    const poolAddress = poolRegistry!.addresses[i]
 
-    for (let j = 0; j < users.addresses.length; j++) {
-      const userAddress = users.addresses[j]
+    for (let j = 0; j < userRegistry!.addresses.length; j++) {
+      const userAddress = userRegistry!.addresses[j]
       createLPPositionSnapshots(block, poolAddress, userAddress)
       createUserScoreSnapshots(block, poolAddress, userAddress)
     }

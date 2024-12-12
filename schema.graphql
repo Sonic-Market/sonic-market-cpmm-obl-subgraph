@@ -137,12 +137,12 @@ type V2Transfer @entity {
   tokenAmount: BigDecimal!
 }
 
-type Pools @entity {
+type PoolRegistry @entity {
   id: ID!
   addresses: [Bytes!]!
 }
 
-type Users @entity {
+type UserRegistry @entity {
   id: ID!
   addresses: [Bytes!]!
 }
