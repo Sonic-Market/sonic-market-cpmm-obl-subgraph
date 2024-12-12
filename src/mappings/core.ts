@@ -31,7 +31,7 @@ import {
 import { Pair as PairTemplate } from '../../generated/templates'
 import { ERC20 } from '../../generated/Factory/ERC20'
 
-const CHAIN_ID = BigInt.fromI32(1)
+const CHAIN_ID = BigInt.fromI32(146)
 const ZERO_BI = BigInt.fromI32(0)
 const ONE_BI = BigInt.fromI32(1)
 const ZERO_BD = BigDecimal.fromString('0')
