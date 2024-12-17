@@ -41,8 +41,15 @@ export const POOL_REGISTRY = 'pool-registry'
 export const USER_REGISTRY = 'user-registry'
 
 function createBlockDate(timestamp: BigInt): string {
-  const date = new Date(timestamp.toI32() * 1000)
+  const date = new Date(timestamp.toI64() * 1000)
   return date.toISOString().split('T')[0]
+}
+
+function adjustDecimals(amount: BigDecimal, decimals: BigInt): BigDecimal {
+  const precision = BigInt.fromI32(10)
+    .pow(u8(decimals.toI32()))
+    .toBigDecimal()
+  return amount.div(precision)
 }
 
 function updatePoolDailySnapshotVolume(event: Swap): void {
@@ -62,25 +69,28 @@ function updatePoolDailySnapshotVolume(event: Swap): void {
   snapshot = PoolSnapshot.load(snapshotId)!
   snapshot1 = PoolSnapshot.load(snapshotId + '-1')!
 
+  const token0Decimals = BigInt.fromI32(ERC20.bind(Address.fromBytes(snapshot.tokenAddress)).decimals())
+  const token1Decimals = BigInt.fromI32(ERC20.bind(Address.fromBytes(snapshot1.tokenAddress)).decimals())
+
   if (event.params.amount0In.gt(ZERO_BI)) {
     snapshot.volumeAmount = snapshot.volumeAmount.plus(
-      event.params.amount0In.toBigDecimal(),
+      adjustDecimals(event.params.amount0In.toBigDecimal(), token0Decimals),
     )
   }
   if (event.params.amount0Out.gt(ZERO_BI)) {
     snapshot.volumeAmount = snapshot.volumeAmount.plus(
-      event.params.amount0Out.toBigDecimal(),
+      adjustDecimals(event.params.amount0Out.toBigDecimal(), token0Decimals),
     )
   }
 
   if (event.params.amount1In.gt(ZERO_BI)) {
     snapshot1.volumeAmount = snapshot1.volumeAmount.plus(
-      event.params.amount1In.toBigDecimal(),
+      adjustDecimals(event.params.amount1In.toBigDecimal(), token1Decimals),
     )
   }
   if (event.params.amount1Out.gt(ZERO_BI)) {
     snapshot1.volumeAmount = snapshot1.volumeAmount.plus(
-      event.params.amount1Out.toBigDecimal(),
+      adjustDecimals(event.params.amount1Out.toBigDecimal(), token1Decimals),
     )
   }
 
@@ -106,7 +116,7 @@ function createPoolDailySnapshots(block: ethereum.Block, pool: Pool): void {
     snapshot.tokenAddress = pair.token0()
     const token0 = ERC20.bind(pair.token0())
     snapshot.tokenSymbol = token0.symbol()
-    snapshot.tokenAmount = reserves.value0.toBigDecimal()
+    snapshot.tokenAmount = adjustDecimals(reserves.value0.toBigDecimal(), BigInt.fromI32(token0.decimals()))
     snapshot.volumeAmount = ZERO_BD
     snapshot.feeRate = FEE_RATE
     snapshot.save()
@@ -120,7 +130,7 @@ function createPoolDailySnapshots(block: ethereum.Block, pool: Pool): void {
     snapshot1.tokenAddress = pair.token1()
     const token1 = ERC20.bind(pair.token1())
     snapshot1.tokenSymbol = token1.symbol()
-    snapshot1.tokenAmount = reserves.value1.toBigDecimal()
+    snapshot1.tokenAmount = adjustDecimals(reserves.value1.toBigDecimal(), BigInt.fromI32(token1.decimals()))
     snapshot1.volumeAmount = ZERO_BD
     snapshot1.feeRate = FEE_RATE
     snapshot1.save()
@@ -145,7 +155,8 @@ export function handleTransfer(event: Transfer): void {
   v2Transfer.fromAddress = event.params.from
   v2Transfer.toAddress = event.params.to
   v2Transfer.poolAddress = event.address
-  v2Transfer.tokenAmount = event.params.value.toBigDecimal()
+  const token = ERC20.bind(event.address)
+  v2Transfer.tokenAmount = adjustDecimals(event.params.value.toBigDecimal(), BigInt.fromI32(token.decimals()))
 
   v2Transfer.save()
 }
@@ -239,6 +250,11 @@ export function handleMint(event: Mint): void {
   const v2Mint = new V2Mint(mintId)
   const pair = PairContract.bind(Address.fromBytes(event.address))
 
+  const token0 = pair.token0()
+  const token1 = pair.token1()
+  const token0Decimals = BigInt.fromI32(ERC20.bind(Address.fromBytes(token0)).decimals())
+  const token1Decimals = BigInt.fromI32(ERC20.bind(Address.fromBytes(token1)).decimals())
+
   v2Mint.timestamp = event.block.timestamp
   v2Mint.chainId = CHAIN_ID
   v2Mint.blockNumber = event.block.number
@@ -248,23 +264,24 @@ export function handleMint(event: Mint): void {
   v2Mint.fromAddress = event.params.sender
   v2Mint.toAddress = event.params.sender
   v2Mint.poolAddress = event.address
-  v2Mint.token0Address = pair.token0()
-  v2Mint.token0Amount = event.params.amount0.toBigDecimal()
-  v2Mint.token1Address = pair.token1()
-  v2Mint.token1Amount = event.params.amount1.toBigDecimal()
+  v2Mint.token0Address = token0
+  v2Mint.token0Amount = adjustDecimals(event.params.amount0.toBigDecimal(), token0Decimals)
+  v2Mint.token1Address = token1
+  v2Mint.token1Amount = adjustDecimals(event.params.amount1.toBigDecimal(), token1Decimals)
   const reserves = pair.getReserves()
   const totalSupply = pair.totalSupply().toBigDecimal()
-  const burnAmount0 = v2Mint.token0Amount
-  const burnAmount1 = v2Mint.token1Amount
+  const burnAmount0 = event.params.amount0.toBigDecimal()
+  const burnAmount1 = event.params.amount1.toBigDecimal()
   const mintAmountFor0 = burnAmount0
     .times(totalSupply)
     .div(reserves.value0.toBigDecimal())
   const mintAmountFor1 = burnAmount1
     .times(totalSupply)
     .div(reserves.value1.toBigDecimal())
-  v2Mint.mintAmount = mintAmountFor0.gt(mintAmountFor1)
+  const lpTokenDecimals = BigInt.fromI32(ERC20.bind(Address.fromBytes(event.address)).decimals())
+  v2Mint.mintAmount = adjustDecimals(mintAmountFor0.gt(mintAmountFor1)
     ? mintAmountFor1
-    : mintAmountFor0
+    : mintAmountFor0, lpTokenDecimals)
 
   v2Mint.save()
 }
@@ -279,6 +296,11 @@ export function handleBurn(event: Burn): void {
   const v2Burn = new V2Burn(burnId)
   const pair = PairContract.bind(Address.fromBytes(event.address))
 
+  const token0 = pair.token0()
+  const token1 = pair.token1()
+  const token0Decimals = BigInt.fromI32(ERC20.bind(Address.fromBytes(token0)).decimals())
+  const token1Decimals = BigInt.fromI32(ERC20.bind(Address.fromBytes(token1)).decimals())
+
   v2Burn.timestamp = event.block.timestamp
   v2Burn.chainId = CHAIN_ID
   v2Burn.blockNumber = event.block.number
@@ -288,15 +310,16 @@ export function handleBurn(event: Burn): void {
   v2Burn.fromAddress = event.params.sender
   v2Burn.toAddress = event.params.to
   v2Burn.poolAddress = event.address
-  v2Burn.token0Address = pair.token0()
-  v2Burn.token0Amount = event.params.amount0.toBigDecimal()
-  v2Burn.token1Address = pair.token1()
-  v2Burn.token1Amount = event.params.amount1.toBigDecimal()
+  v2Burn.token0Address = token0
+  v2Burn.token0Amount = adjustDecimals(event.params.amount0.toBigDecimal(), token0Decimals)
+  v2Burn.token1Address = token1
+  v2Burn.token1Amount = adjustDecimals(event.params.amount1.toBigDecimal(), token1Decimals)
   const reserves = pair.getReserves()
   const totalSupply = pair.totalSupply().toBigDecimal()
-  v2Burn.burnAmount = v2Burn.token0Amount
+  const lpTokenDecimals = BigInt.fromI32(ERC20.bind(Address.fromBytes(event.address)).decimals())
+  v2Burn.burnAmount = adjustDecimals(event.params.amount0.toBigDecimal()
     .div(reserves.value0.toBigDecimal())
-    .times(totalSupply)
+    .times(totalSupply), lpTokenDecimals)
 
   v2Burn.save()
 }
@@ -324,11 +347,14 @@ export function handleSwap(event: Swap): void {
   const token0 = pair.token0()
   const token1 = pair.token1()
 
+  const token0Decimals = BigInt.fromI32(ERC20.bind(Address.fromBytes(token0)).decimals())
+  const token1Decimals = BigInt.fromI32(ERC20.bind(Address.fromBytes(token1)).decimals())
+
   if (event.params.amount0In.gt(ZERO_BI)) {
     trade.inputTokenAddress = token0
-    trade.inputTokenAmount = event.params.amount0In.toBigDecimal()
+    trade.inputTokenAmount = adjustDecimals(event.params.amount0In.toBigDecimal(), token0Decimals)
     trade.outputTokenAddress = token1
-    trade.outputTokenAmount = event.params.amount1Out.toBigDecimal()
+    trade.outputTokenAmount = adjustDecimals(event.params.amount1Out.toBigDecimal(), token1Decimals)
 
     const inputToken = ERC20.bind(Address.fromBytes(token0))
     trade.inputTokenSymbol = inputToken.symbol()
@@ -337,9 +363,9 @@ export function handleSwap(event: Swap): void {
     trade.outputTokenSymbol = outputToken.symbol()
   } else {
     trade.inputTokenAddress = token1
-    trade.inputTokenAmount = event.params.amount1In.toBigDecimal()
+    trade.inputTokenAmount = adjustDecimals(event.params.amount1In.toBigDecimal(), token1Decimals)
     trade.outputTokenAddress = token0
-    trade.outputTokenAmount = event.params.amount0Out.toBigDecimal()
+    trade.outputTokenAmount = adjustDecimals(event.params.amount0Out.toBigDecimal(), token0Decimals)
 
     const inputToken = ERC20.bind(Address.fromBytes(token1))
     trade.inputTokenSymbol = inputToken.symbol()
@@ -372,16 +398,21 @@ export function handleSync(event: Sync): void {
   const v2Sync = new V2Sync(syncId)
   const pair = PairContract.bind(Address.fromBytes(event.address))
 
+  const token0 = pair.token0()
+  const token1 = pair.token1()
+  const token0Decimals = BigInt.fromI32(ERC20.bind(Address.fromBytes(token0)).decimals())
+  const token1Decimals = BigInt.fromI32(ERC20.bind(Address.fromBytes(token1)).decimals())
+
   v2Sync.timestamp = event.block.timestamp
   v2Sync.chainId = CHAIN_ID
   v2Sync.blockNumber = event.block.number
   v2Sync.logIndex = event.logIndex
   v2Sync.transactionHash = event.transaction.hash
   v2Sync.poolAddress = event.address
-  v2Sync.token0Address = pair.token0()
-  v2Sync.token0Amount = event.params.reserve0.toBigDecimal()
-  v2Sync.token1Address = pair.token1()
-  v2Sync.token1Amount = event.params.reserve1.toBigDecimal()
+  v2Sync.token0Address = token0
+  v2Sync.token0Amount = adjustDecimals(event.params.reserve0.toBigDecimal(), token0Decimals)
+  v2Sync.token1Address = token1
+  v2Sync.token1Amount = adjustDecimals(event.params.reserve1.toBigDecimal(), token1Decimals)
 
   v2Sync.save()
 }
@@ -424,6 +455,8 @@ function createLPPositionSnapshots(
     const token1Address = pair.token1()
     const token0 = ERC20.bind(token0Address)
     const token1 = ERC20.bind(token1Address)
+    const token0Decimals = BigInt.fromI32(token0.decimals())
+    const token1Decimals = BigInt.fromI32(token1.decimals())
 
     const balance = pair.balanceOf(Address.fromBytes(userAddress))
     const totalSupply = pair.totalSupply()
@@ -442,7 +475,7 @@ function createLPPositionSnapshots(
     snapshot0.tokenIndex = ZERO_BI
     snapshot0.tokenAddress = token0Address
     snapshot0.tokenSymbol = token0.symbol()
-    snapshot0.tokenAmount = token0Amount
+    snapshot0.tokenAmount = adjustDecimals(token0Amount, token0Decimals)
     snapshot0.save()
 
     const snapshot1Id =
@@ -461,7 +494,7 @@ function createLPPositionSnapshots(
     snapshot1.tokenIndex = ONE_BI
     snapshot1.tokenAddress = token1Address
     snapshot1.tokenSymbol = token1.symbol()
-    snapshot1.tokenAmount = token1Amount
+    snapshot1.tokenAmount = adjustDecimals(token1Amount, token1Decimals)
     snapshot1.save()
   }
 }
@@ -486,9 +519,10 @@ function createUserScoreSnapshots(
 
     const userShare = balance.toBigDecimal().div(totalSupply.toBigDecimal())
     const reserves = pair.getReserves()
-    const totalValueLocked = reserves.value0
-      .toBigDecimal()
-      .plus(reserves.value1.toBigDecimal())
+    const token0Decimals = BigInt.fromI32(ERC20.bind(Address.fromBytes(pair.token0())).decimals())
+    const token1Decimals = BigInt.fromI32(ERC20.bind(Address.fromBytes(pair.token1())).decimals())
+    const totalValueLocked = adjustDecimals(reserves.value0.toBigDecimal(), token0Decimals)
+      .plus(adjustDecimals(reserves.value1.toBigDecimal(), token1Decimals))
     const totalValueLockedScore = totalValueLocked.times(userShare)
 
     const snapshot = new UserScoreSnapshot(snapshotId)
