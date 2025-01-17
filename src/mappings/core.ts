@@ -485,9 +485,12 @@ export function handleSync(event: Sync): void {
 }
 
 export function handleFactoryBlock(block: ethereum.Block): void {
-  const status = Status.load('status')
-  if (!status) {
-    return
+  let status = Status.load('status')
+  if (status === null) {
+    status = new Status('status')
+    status.latestHandleFactoryBlockBlockDailySnapshotTimestamp =
+      BigInt.fromI32(0)
+    status.latestHandlePairBlockDailySnapshotTimestamp = BigInt.fromI32(0)
   }
 
   if (
@@ -627,9 +630,12 @@ function createUserScoreSnapshots(
 }
 
 export function handlePairBlock(block: ethereum.Block): void {
-  const status = Status.load('status')
-  if (!status) {
-    return
+  let status = Status.load('status')
+  if (status === null) {
+    status = new Status('status')
+    status.latestHandleFactoryBlockBlockDailySnapshotTimestamp =
+      BigInt.fromI32(0)
+    status.latestHandlePairBlockDailySnapshotTimestamp = BigInt.fromI32(0)
   }
 
   if (
