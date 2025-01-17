@@ -1,3 +1,9 @@
+type Status @entity {
+  id: ID! # status
+  latestHandleFactoryBlockBlockDailySnapshotTimestamp: BigInt!
+  latestHandlePairBlockDailySnapshotTimestamp: BigInt!
+}
+
 type Pool @entity {
   id: ID!
   chainId: BigInt!

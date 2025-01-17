@@ -20,6 +20,7 @@ import {
   Pool,
   PoolRegistry,
   PoolSnapshot,
+  Status,
   Trade,
   UserRegistry,
   UserScoreSnapshot,
@@ -484,6 +485,22 @@ export function handleSync(event: Sync): void {
 }
 
 export function handleFactoryBlock(block: ethereum.Block): void {
+  const status = Status.load('status')
+  if (!status) {
+    return
+  }
+
+  if (
+    status.latestHandleFactoryBlockBlockDailySnapshotTimestamp ==
+    normalizeDailyTimestamp(block.timestamp)
+  ) {
+    return
+  }
+
+  status.latestHandleFactoryBlockBlockDailySnapshotTimestamp =
+    normalizeDailyTimestamp(block.timestamp)
+  status.save()
+
   const registry = PoolRegistry.load(POOL_REGISTRY)
   if (!registry) {
     return
@@ -610,6 +627,23 @@ function createUserScoreSnapshots(
 }
 
 export function handlePairBlock(block: ethereum.Block): void {
+  const status = Status.load('status')
+  if (!status) {
+    return
+  }
+
+  if (
+    status.latestHandlePairBlockDailySnapshotTimestamp ==
+    normalizeDailyTimestamp(block.timestamp)
+  ) {
+    return
+  }
+
+  status.latestHandlePairBlockDailySnapshotTimestamp = normalizeDailyTimestamp(
+    block.timestamp,
+  )
+  status.save()
+
   const poolRegistry = PoolRegistry.load(POOL_REGISTRY)
   const userRegistry = UserRegistry.load(USER_REGISTRY)
   if (!poolRegistry || !userRegistry) {
@@ -625,4 +659,8 @@ export function handlePairBlock(block: ethereum.Block): void {
       createUserScoreSnapshots(block, poolAddress, userAddress)
     }
   }
+}
+
+export function normalizeDailyTimestamp(timestamp: BigInt): BigInt {
+  return timestamp.minus(timestamp.mod(BigInt.fromI32(86400)))
 }
