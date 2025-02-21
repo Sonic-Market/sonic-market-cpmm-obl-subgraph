@@ -31,6 +31,7 @@ import {
 } from '../../generated/schema'
 import { Pair as PairTemplate } from '../../generated/templates'
 import { ERC20 } from '../../generated/Factory/ERC20'
+import { Pair } from '../../generated/Factory/Pair'
 
 const CHAIN_ID = BigInt.fromI32(146)
 const ZERO_BI = BigInt.fromI32(0)
@@ -38,8 +39,55 @@ const ONE_BI = BigInt.fromI32(1)
 const ZERO_BD = BigDecimal.fromString('0')
 const FEE_RATE = BigDecimal.fromString('0.003')
 const ADDRESS_ZERO = '0x0000000000000000000000000000000000000000'
+const WETH_ADDRESS = '0x039e2fb66102314ce7b64ce5ce3e5183bc94ad38'
+const USDC_ADDRESS = '0x29219dd400f2bf60e5a23d13be72b486d4038894'
+const USDC_WETH_PAIR = '0x0d0abc4e8afdfb5257fa455dfaf18f79df11065c'
 export const POOL_REGISTRY = 'pool-registry'
 export const USER_REGISTRY = 'user-registry'
+
+function exponentToBigDecimal(decimals: BigInt): BigDecimal {
+  let bd = BigDecimal.fromString('1')
+  for (let i = ZERO_BI; i.lt(decimals as BigInt); i = i.plus(ONE_BI)) {
+    bd = bd.times(BigDecimal.fromString('10'))
+  }
+  return bd
+}
+
+function convertTokenToDecimal(
+  tokenAmount: BigInt,
+  exchangeDecimals: BigInt,
+): BigDecimal {
+  if (exchangeDecimals == ZERO_BI) {
+    return tokenAmount.toBigDecimal()
+  }
+  return tokenAmount.toBigDecimal().div(exponentToBigDecimal(exchangeDecimals))
+}
+
+function getEthPriceInUSD(): BigDecimal {
+  const pair = Pair.bind(Address.fromString(USDC_WETH_PAIR))
+  const reserves = pair.try_getReserves()
+  if (reserves.reverted) {
+    return BigDecimal.fromString('0')
+  }
+  const reserve0 = convertTokenToDecimal(
+    reserves.value.get_reserve0(),
+    BigInt.fromI32(18),
+  )
+  const reserve1 = convertTokenToDecimal(
+    reserves.value.get_reserve1(),
+    BigInt.fromI32(6),
+  )
+  return reserve1.div(reserve0)
+}
+
+function calculateTokenPrice(tokenAddress: String): BigDecimal {
+  if (tokenAddress == ADDRESS_ZERO || tokenAddress == WETH_ADDRESS) {
+    return getEthPriceInUSD()
+  } else if (tokenAddress == USDC_ADDRESS) {
+    return BigDecimal.fromString('1')
+  }
+  return BigDecimal.fromString('0')
+}
 
 function createBlockDate(timestamp: BigInt): string {
   const date = new Date(timestamp.toI64() * 1000)
@@ -96,6 +144,21 @@ function updatePoolDailySnapshotVolume(event: Swap): void {
       adjustDecimals(event.params.amount1Out.toBigDecimal(), token1Decimals),
     )
   }
+  const status = Status.load('status')
+  if (status === null) {
+    throw new Error('Status not found in updatePoolDailySnapshotVolume')
+  }
+
+  snapshot.totalFeesUSD = snapshot.volumeAmount
+    .times(FEE_RATE)
+    .times(calculateTokenPrice(snapshot.tokenAddress.toHexString()))
+  snapshot.userFeesUSD = status.userFeesUSD
+
+  snapshot1.totalFeesUSD = snapshot1.volumeAmount
+    .times(FEE_RATE)
+    .times(calculateTokenPrice(snapshot1.tokenAddress.toHexString()))
+  snapshot1.userFeesUSD = status.userFeesUSD
+  // todo: protocol_fees_usd
 
   snapshot.save()
   snapshot1.save()
@@ -125,6 +188,9 @@ function createPoolDailySnapshots(block: ethereum.Block, pool: Pool): void {
     )
     snapshot.volumeAmount = ZERO_BD
     snapshot.feeRate = FEE_RATE
+    snapshot.totalFeesUSD = ZERO_BD
+    snapshot.userFeesUSD = ZERO_BD
+    snapshot.protocolFeesUSD = ZERO_BD
     snapshot.save()
 
     const snapshot1 = new PoolSnapshot(snapshotId + '-1')
@@ -142,6 +208,9 @@ function createPoolDailySnapshots(block: ethereum.Block, pool: Pool): void {
     )
     snapshot1.volumeAmount = ZERO_BD
     snapshot1.feeRate = FEE_RATE
+    snapshot.totalFeesUSD = ZERO_BD
+    snapshot.userFeesUSD = ZERO_BD
+    snapshot.protocolFeesUSD = ZERO_BD
     snapshot1.save()
   }
 }
@@ -443,8 +512,17 @@ export function handleSwap(event: Swap): void {
       .toBigDecimal()
       .div(reserves.value1.toBigDecimal())
   }
-
+  const tokenPrice = calculateTokenPrice(trade.outputTokenAddress.toHexString())
+  trade.feeUSD = trade.outputTokenAmount.times(tokenPrice).times(FEE_RATE)
   trade.save()
+
+  const status = Status.load('status')
+  if (status === null) {
+    throw new Error('Status not found')
+  }
+  status.userFeesUSD = status.userFeesUSD.plus(trade.feeUSD)
+  status.protocolFeesUSD = BigDecimal.fromString('0') // TODO: calculate protocol fees
+  status.save()
 
   updatePoolDailySnapshotVolume(event)
 }
@@ -636,6 +714,8 @@ export function handlePairBlock(block: ethereum.Block): void {
     status.latestHandleFactoryBlockBlockDailySnapshotTimestamp =
       BigInt.fromI32(0)
     status.latestHandlePairBlockDailySnapshotTimestamp = BigInt.fromI32(0)
+    status.userFeesUSD = ZERO_BD
+    status.protocolFeesUSD = ZERO_BD
   }
 
   if (

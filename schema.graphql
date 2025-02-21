@@ -2,6 +2,8 @@ type Status @entity {
   id: ID! # status
   latestHandleFactoryBlockBlockDailySnapshotTimestamp: BigInt!
   latestHandlePairBlockDailySnapshotTimestamp: BigInt!
+  userFeesUSD: BigDecimal!
+  protocolFeesUSD: BigDecimal!
 }
 
 type Pool @entity {
@@ -56,6 +58,9 @@ type PoolSnapshot @entity {
   tokenAmount: BigDecimal!
   volumeAmount: BigDecimal!
   feeRate: BigDecimal!
+  totalFeesUSD: BigDecimal!
+  userFeesUSD: BigDecimal!
+  protocolFeesUSD: BigDecimal!
 }
 
 type Trade @entity {
@@ -77,6 +82,7 @@ type Trade @entity {
   outputTokenSymbol: String!
   outputTokenAmount: BigDecimal!
   spotPriceAfterSwap: BigDecimal!
+  feeUSD: BigDecimal!
 }
 
 type V2Mint @entity {
