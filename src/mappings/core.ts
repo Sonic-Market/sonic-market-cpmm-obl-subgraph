@@ -149,11 +149,17 @@ function updatePoolDailySnapshotVolume(event: Swap): void {
     throw new Error('Status not found in updatePoolDailySnapshotVolume')
   }
 
+  snapshot.volumeAmountUsd = snapshot.volumeAmount.times(
+    calculateTokenPrice(snapshot.tokenAddress.toHexString()),
+  )
   snapshot.totalFeesUSD = snapshot.volumeAmount
     .times(FEE_RATE)
     .times(calculateTokenPrice(snapshot.tokenAddress.toHexString()))
   snapshot.userFeesUSD = status.userFeesUSD
 
+  snapshot1.volumeAmountUsd = snapshot1.volumeAmount.times(
+    calculateTokenPrice(snapshot1.tokenAddress.toHexString()),
+  )
   snapshot1.totalFeesUSD = snapshot1.volumeAmount
     .times(FEE_RATE)
     .times(calculateTokenPrice(snapshot1.tokenAddress.toHexString()))
@@ -186,7 +192,11 @@ function createPoolDailySnapshots(block: ethereum.Block, pool: Pool): void {
       reserves.value0.toBigDecimal(),
       BigInt.fromI32(token0.decimals()),
     )
+    snapshot.tokenAmountUsd = snapshot.tokenAmount.times(
+      calculateTokenPrice(pair.token0().toHexString()),
+    )
     snapshot.volumeAmount = ZERO_BD
+    snapshot.volumeAmountUsd = ZERO_BD
     snapshot.feeRate = FEE_RATE
     snapshot.totalFeesUSD = ZERO_BD
     snapshot.userFeesUSD = ZERO_BD
@@ -206,7 +216,11 @@ function createPoolDailySnapshots(block: ethereum.Block, pool: Pool): void {
       reserves.value1.toBigDecimal(),
       BigInt.fromI32(token1.decimals()),
     )
+    snapshot1.tokenAmountUsd = snapshot1.tokenAmount.times(
+      calculateTokenPrice(pair.token1().toHexString()),
+    )
     snapshot1.volumeAmount = ZERO_BD
+    snapshot1.volumeAmountUsd = ZERO_BD
     snapshot1.feeRate = FEE_RATE
     snapshot.totalFeesUSD = ZERO_BD
     snapshot.userFeesUSD = ZERO_BD
@@ -512,6 +526,9 @@ export function handleSwap(event: Swap): void {
       .toBigDecimal()
       .div(reserves.value1.toBigDecimal())
   }
+  trade.swapAmountUsd = trade.inputTokenAmount.times(
+    calculateTokenPrice(trade.inputTokenAddress.toHexString()),
+  )
   const tokenPrice = calculateTokenPrice(trade.outputTokenAddress.toHexString())
   trade.feeUSD = trade.outputTokenAmount.times(tokenPrice).times(FEE_RATE)
   trade.save()
@@ -640,6 +657,9 @@ function createLPPositionSnapshots(
     snapshot0.tokenAddress = token0Address
     snapshot0.tokenSymbol = token0.symbol()
     snapshot0.tokenAmount = adjustDecimals(token0Amount, token0Decimals)
+    snapshot0.tokenAmountUsd = snapshot0.tokenAmount.times(
+      calculateTokenPrice(token0Address.toHexString()),
+    )
     snapshot0.save()
 
     const snapshot1Id =
@@ -659,6 +679,9 @@ function createLPPositionSnapshots(
     snapshot1.tokenAddress = token1Address
     snapshot1.tokenSymbol = token1.symbol()
     snapshot1.tokenAmount = adjustDecimals(token1Amount, token1Decimals)
+    snapshot1.tokenAmountUsd = snapshot1.tokenAmount.times(
+      calculateTokenPrice(token1Address.toHexString()),
+    )
     snapshot1.save()
   }
 }

@@ -33,6 +33,7 @@ type LPPositionSnapshot @entity {
   tokenAddress: Bytes!
   tokenSymbol: String!
   tokenAmount: BigDecimal!
+  tokenAmountUsd: BigDecimal!
 }
 
 type UserScoreSnapshot @entity {
@@ -56,7 +57,9 @@ type PoolSnapshot @entity {
   tokenAddress: Bytes!
   tokenSymbol: String!
   tokenAmount: BigDecimal!
+  tokenAmountUsd: BigDecimal!
   volumeAmount: BigDecimal!
+  volumeAmountUsd: BigDecimal!
   feeRate: BigDecimal!
   totalFeesUSD: BigDecimal!
   userFeesUSD: BigDecimal!
@@ -82,6 +85,7 @@ type Trade @entity {
   outputTokenSymbol: String!
   outputTokenAmount: BigDecimal!
   spotPriceAfterSwap: BigDecimal!
+  swapAmountUsd: BigDecimal!
   feeUSD: BigDecimal!
 }
 
